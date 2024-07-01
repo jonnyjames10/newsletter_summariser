@@ -20,7 +20,7 @@ def connect_to_gmail_imap(user, password):
     try:
         mail = imaplib.IMAP4_SSL(imap_url)
         mail.login(user, password)
-        mail.select('inbox')  # Connect to the inbox.
+        mail.select('Notes')  # Connect to the inbox.
         return mail
     except Exception as e:
         logging.error("Connection failed: {}".format(e))
@@ -36,7 +36,8 @@ def get_emails_to_delete(mail, filepath):
         _, messages = mail.search(None, '(FROM "{}")'.format(email))
         print(messages)
         for num in messages[0].split():
-            mail.store(num, '+FLAGS', '\\Seen')
+            print(mail.fetch(num, "(UID BODY[TEXT])")[1])
+            mail.store(num, '+FLAGS', '\\Seen') # Email flags can be: Seen, Answered, Flagged, Deleted, Draft, Recent
             summary = summary._append({'Email': email, 'Count': len(num)}, ignore_index=True)
     return summary
 
