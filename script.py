@@ -1,55 +1,50 @@
-import os.path
+import yaml
+import logging
+import imaplib
+import pandas as pd
+import json
 
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
+def load_credentials(filepath):
+    try:
+        with open(filepath, 'r') as file:
+            credentials = yaml.safe_load(file)
+            user = credentials['user']
+            password = credentials['password']
+            return user, password
+    except Exception as e:
+        logging.error("Failed to load credentials: {}".format(e))
+        raise
 
-# If modifying these scopes, delete the file token.json.
-SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
+def connect_to_gmail_imap(user, password):
+    imap_url = 'imap.gmail.com'
+    try:
+        mail = imaplib.IMAP4_SSL(imap_url)
+        mail.login(user, password)
+        mail.select('inbox')  # Connect to the inbox.
+        return mail
+    except Exception as e:
+        logging.error("Connection failed: {}".format(e))
+        raise
 
+def get_emails_to_delete(mail, filepath):
+    with open(filepath, 'r') as file:
+        data = json.load(file)
+        emails_to_delete = data['emails']
+
+    summary = pd.DataFrame(columns=['Email', 'Count'])
+    for email in emails_to_delete:
+        _, messages = mail.search(None, '(FROM "{}")'.format(email))
+        print(messages)
+        for num in messages[0].split():
+            mail.store(num, '+FLAGS', '\\Seen')
+            summary = summary._append({'Email': email, 'Count': len(num)}, ignore_index=True)
+    return summary
 
 def main():
-  """Shows basic usage of the Gmail API.
-  Lists the user's Gmail labels.
-  """
-  creds = None
-  # The file token.json stores the user's access and refresh tokens, and is
-  # created automatically when the authorization flow completes for the first
-  # time.
-  if os.path.exists("token.json"):
-    creds = Credentials.from_authorized_user_file("token.json", SCOPES)
-  # If there are no (valid) credentials available, let the user log in.
-  if not creds or not creds.valid:
-    if creds and creds.expired and creds.refresh_token:
-      creds.refresh(Request())
-    else:
-      flow = InstalledAppFlow.from_client_secrets_file(
-          "credentials.json", SCOPES
-      )
-      creds = flow.run_local_server(port=0)
-    # Save the credentials for the next run
-    with open("token.json", "w") as token:
-      token.write(creds.to_json())
-
-  try:
-    # Call the Gmail API
-    service = build("gmail", "v1", credentials=creds)
-    results = service.users().labels().list(userId="me").execute()
-    labels = results.get("labels", [])
-
-    if not labels:
-      print("No labels found.")
-      return
-    print("Labels:")
-    for label in labels:
-      print(label["name"])
-
-  except HttpError as error:
-    # TODO(developer) - Handle errors from gmail API.
-    print(f"An error occurred: {error}")
-
-
+    credentials = load_credentials('credentials.yaml')
+    mail = connect_to_gmail_imap(*credentials)
+    summary = get_emails_to_delete(mail, 'emails.json')
+    print(summary)
+    
 if __name__ == "__main__":
-  main()
+    main()
