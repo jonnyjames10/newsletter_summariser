@@ -4,6 +4,8 @@ import imaplib
 import pandas as pd
 import json
 import email
+from bs4 import BeautifulSoup
+from itertools import chain
 
 def load_credentials(filepath):
     try:
@@ -27,35 +29,49 @@ def connect_to_gmail_imap(user, password):
         logging.error("Connection failed: {}".format(e))
         raise
 
-def get_emails_to_delete(mail, filepath):
+def search_string(uid_max, criteria):
+    c = list(map(lambda t: (t[0], '"'+str(t[1])+'"'), criteria.items())) + [('UID', '%d:*' % (uid_max+1))]
+    return '(%s)' % ' '.join(chain(*c))
+
+def get_emails(mail, filepath):
     with open(filepath, 'r') as file:
         data = json.load(file)
         emails_to_delete = data['emails']
+    
+    _, selected_mails = mail.search(None, '(FROM "jonnysj8@gmail.com")')
+    print(len(selected_mails[0].split()))
+    for num in selected_mails[0].split():
+        _, data = mail.fetch(num , '(RFC822)')
+        _, bytes_data = data[0]
 
-    outdir = "C:\\Users\\jonny\\Downloads"
-    summary = pd.DataFrame(columns=['Email', 'Count'])
-    for e in emails_to_delete:
-        _, messages = mail.search(None, '(FROM "{}")'.format(e))
-        print(messages)
-        for num in messages[0].split():
-            header = mail.fetch(num, "(UID BODY[HEADER])")[1]
-            resp, text = mail.fetch(num, "(UID BODY[TEXT])")[1]
-            resp = str(resp)
-            ml = email.message_from_string(resp)
-            print(ml.get_content_maintype())
-            for part in ml.walk():
-                print(part.get_filename())
-                if part.get_content_maintype() != 'multipart' and part.get('Content-Disposition') is not None:
-                    open(outputdir + '/' + part.get_filename(), 'wb').write(part.get_payload(decode=True))
-            mail.store(num, '+FLAGS', '\\Seen') # Email flags can be: Seen, Answered, Flagged, Deleted, Draft, Recent
-            summary = summary._append({'Email': e, 'Count': len(num)}, ignore_index=True)
-    return summary
+        #convert the byte data to message
+        email_message = email.message_from_bytes(bytes_data)
+        print('-------')
+        print(email_message)
+        print('-------')
+        print("\n===========================================")
+
+        #access data
+        print("Subject: ",email_message["subject"])
+        print("To:", email_message["to"])
+        print("From: ",email_message["from"])
+        print("Date: ",email_message["date"])
+        for part in email_message.walk():
+            if part.get_content_type()=="text/plain" or part.get_content_type()=="text/html":
+                message = part.get_payload(decode=True)
+                print("Message: \n", message.decode())
+                print("==========================================\n")
+                break
+
+    return
 
 #2nd test comment for push
 def main():
+    criteria = {}
+    uid_max = 0
     credentials = load_credentials('credentials.yaml')
     mail = connect_to_gmail_imap(*credentials)
-    summary = get_emails_to_delete(mail, 'emails.json')
+    summary = get_emails(mail, 'emails.json')
     print(summary)
     
 if __name__ == "__main__":
