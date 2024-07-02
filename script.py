@@ -51,6 +51,7 @@ def get_emails_to_delete(mail, filepath):
             summary = summary._append({'Email': e, 'Count': len(num)}, ignore_index=True)
     return summary
 
+#test comment for push
 def main():
     credentials = load_credentials('credentials.yaml')
     mail = connect_to_gmail_imap(*credentials)
