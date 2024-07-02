@@ -29,16 +29,13 @@ def connect_to_gmail_imap(user, password):
         logging.error("Connection failed: {}".format(e))
         raise
 
-def search_string(uid_max, criteria):
-    c = list(map(lambda t: (t[0], '"'+str(t[1])+'"'), criteria.items())) + [('UID', '%d:*' % (uid_max+1))]
-    return '(%s)' % ' '.join(chain(*c))
-
 def get_emails(mail, filepath):
     with open(filepath, 'r') as file:
         data = json.load(file)
         emails_to_delete = data['emails']
     
-    _, selected_mails = mail.search(None, '(FROM "jonnysj8@gmail.com")')
+    _, selected_mails = mail.search(None, 'OR (FROM "noreply@medium.com") (FROM "jonnysj8@gmail.com")')
+
     print(len(selected_mails[0].split()))
     for num in selected_mails[0].split():
         _, data = mail.fetch(num , '(RFC822)')
@@ -46,9 +43,6 @@ def get_emails(mail, filepath):
 
         #convert the byte data to message
         email_message = email.message_from_bytes(bytes_data)
-        print('-------')
-        print(email_message)
-        print('-------')
         print("\n===========================================")
 
         #access data
