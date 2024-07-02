@@ -37,7 +37,7 @@ def get_emails(mail, filepath):
     _, selected_mails = mail.search(None, 'OR (FROM "noreply@medium.com") (FROM "jonnysj8@gmail.com")')
 
     print(len(selected_mails[0].split()))
-    for num in selected_mails[0].split():
+    for num in selected_mails[0].split()[1:3]: # Add index here (e.g., [1:3]) to limit the number of emails received
         _, data = mail.fetch(num , '(RFC822)')
         _, bytes_data = data[0]
 
