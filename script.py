@@ -30,10 +30,6 @@ def connect_to_gmail_imap(user, password):
         raise
 
 def get_emails(mail, filepath):
-    with open(filepath, 'r') as file:
-        data = json.load(file)
-        emails_to_delete = data['emails']
-    
     _, selected_mails = mail.search(None, 'OR (FROM "noreply@medium.com") (FROM "jonnysj8@gmail.com")')
 
     print(len(selected_mails[0].split()))
