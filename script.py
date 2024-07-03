@@ -2,7 +2,6 @@ import yaml
 import logging
 import imaplib
 import pandas as pd
-import json
 import email
 from bs4 import BeautifulSoup
 from itertools import chain
@@ -30,10 +29,10 @@ def connect_to_gmail_imap(user, password):
         raise
 
 def get_emails(mail, filepath):
-    _, selected_mails = mail.search(None, 'OR (FROM "noreply@medium.com") (FROM "jonnysj8@gmail.com")')
+    _, selected_mails = mail.search(None, 'OR (FROM "noreply@medium.com") (FROM "markmallard29@gmail.com")')
 
     print(len(selected_mails[0].split()))
-    for num in selected_mails[0].split()[1:3]: # Add index here (e.g., [1:3]) to limit the number of emails received
+    for num in selected_mails[0].split()[:3]: # Add index here (e.g., [:10]) to limit the number of emails received
         _, data = mail.fetch(num , '(RFC822)')
         _, bytes_data = data[0]
 
@@ -49,20 +48,26 @@ def get_emails(mail, filepath):
         for part in email_message.walk():
             if part.get_content_type()=="text/plain" or part.get_content_type()=="text/html":
                 message = part.get_payload(decode=True)
-                print("Message: \n", message.decode())
+                decoded_message = message.decode()
+                print("Message: \n", decoded_message)
                 print("==========================================\n")
+                file_name = f'article_{int(num)}.txt'
+                f = open(file_name, "x")
+                f.write(decoded_message)
+                f.close()
                 break
 
     return
 
 #2nd test comment for push
 def main():
-    criteria = {}
-    uid_max = 0
     credentials = load_credentials('credentials.yaml')
     mail = connect_to_gmail_imap(*credentials)
-    summary = get_emails(mail, 'emails.json')
-    print(summary)
-    
+    get_emails(mail, 'emails.json')
+
 if __name__ == "__main__":
     main()
+
+#TODO:
+#   Extract headers, text and links from the emails
+#   Use ChatGPT to extract summaries of articles
