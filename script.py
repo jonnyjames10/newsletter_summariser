@@ -5,6 +5,15 @@ import pandas as pd
 import email
 from bs4 import BeautifulSoup
 from itertools import chain
+from openai import OpenAI
+
+prompt = '''
+    Please summarize the key learnings from the top 10 articles across these 5 newsletters. 
+    For each article, provide the author, title, date the article was written, and a brief summary 
+    of the key learnings. The summary should include context around the issue, the methodology used, 
+    and the solution outlined. Additionally, include a link to access the full article. Here are 
+    the 5 newsletters:
+'''
 
 def load_credentials(filepath):
     try:
@@ -56,6 +65,13 @@ def get_emails(mail, filepath):
                 f.write(decoded_message)
                 f.close()
                 break
+    return
+
+def access_api():
+    client = OpenAI(
+        organization='org-RCHvmqk9Mhdjk5WOht6gFsyu',
+        project='newsletter_summarizer',
+    )
 
     return
 
