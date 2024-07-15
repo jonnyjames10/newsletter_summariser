@@ -3,6 +3,7 @@ import logging
 import imaplib
 import pandas as pd
 import email
+import smtplib, ssl
 from email.message import Message
 from bs4 import BeautifulSoup
 from itertools import chain
@@ -70,12 +71,17 @@ def get_emails(mail, filepath):
     return
 
 def send_email(mail, body, from_email, to_email):
-    new_message = Message()
-    new_message['From'] = from_email
-    new_message['Subject'] = 'Test subject'
-    new_message.set_payload(body)
+    #new_message = Message()
+    #new_message['From'] = from_email
+    #new_message['Subject'] = 'Test subject'
+    #new_message.set_payload(body)
 
-    mail.append('INBOX', '', imaplib.Time2Internaldate(time()), str(new_message).encode('utf-8'))
+    #mail.append('INBOX', '', imaplib.Time2Internaldate(time()), str(new_message).encode('utf-8'))
+
+    message = MIMEMultipart("alternative")
+    message["Subject"] = "multipart test"
+    message["From"] = from_email
+    message["To"] = to_email
 
 def access_api():
     with open('credentials.yaml', 'r') as file:
