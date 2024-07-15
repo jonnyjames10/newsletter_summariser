@@ -3,9 +3,11 @@ import logging
 import imaplib
 import pandas as pd
 import email
+from email.message import Message
 from bs4 import BeautifulSoup
 from itertools import chain
 from openai import OpenAI
+from time import time
 
 prompt = '''
     Please summarize the key learnings from the top 10 articles across these 5 newsletters. 
@@ -61,29 +63,63 @@ def get_emails(mail, filepath):
                 print("Message: \n", decoded_message)
                 print("==========================================\n")
                 file_name = f'article_{int(num)}.txt'
-                f = open(file_name, "x")
-                f.write(decoded_message)
-                f.close()
+                #f = open(file_name, "x")
+                #f.write(decoded_message)
+                #f.close()
                 break
     return
 
+def send_email(mail, body, from_email, to_email):
+    new_message = Message()
+    new_message['From'] = from_email
+    new_message['Subject'] = 'Test subject'
+    new_message.set_payload(body)
+
+    mail.append('INBOX', '', imaplib.Time2Internaldate(time()), str(new_message).encode('utf-8'))
+
 def access_api():
+    with open('credentials.yaml', 'r') as file:
+            credentials = yaml.safe_load(file)
+            api_key = credentials['api_key']
+
+    content = ""
+
+    for i in ['7']:
+        with open(f'article_{i}.txt', 'r') as file:
+            content += file.read()
+    
     client = OpenAI(
         organization='org-RCHvmqk9Mhdjk5WOht6gFsyu',
-        project='newsletter_summarizer',
+        #project='newsletter_summarizer',
+        api_key=api_key
     )
 
-    return
+    response = client.chat.completions.create(
+        model = "gpt-3.5-turbo",
+        messages = [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": content}
+        ]
+    )
 
-#2nd test comment for push
+    body = response.choices[0].message.content
+
+    return body
+
 def main():
     credentials = load_credentials('credentials.yaml')
     mail = connect_to_gmail_imap(*credentials)
     get_emails(mail, 'emails.json')
+    body = access_api()
+    send_email(mail, body, 'jonnysj8@gmail.com', 'jonnysj8@gmail.com')
+
+    #file_name = 'result.txt'
+    #f = open(file_name, "x")
+    #f.write(body)
+    #f.close()
 
 if __name__ == "__main__":
     main()
 
 #TODO:
 #   Extract headers, text and links from the emails
-#   Use ChatGPT to extract summaries of articles
