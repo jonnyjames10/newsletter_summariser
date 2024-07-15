@@ -3,6 +3,8 @@ import logging
 import imaplib
 import pandas as pd
 import email
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import smtplib, ssl
 from email.message import Message
 from bs4 import BeautifulSoup
@@ -79,9 +81,48 @@ def send_email(mail, body, from_email, to_email):
     #mail.append('INBOX', '', imaplib.Time2Internaldate(time()), str(new_message).encode('utf-8'))
 
     message = MIMEMultipart("alternative")
-    message["Subject"] = "multipart test"
+    message["Subject"] = "Your Daily AI News"
     message["From"] = from_email
     message["To"] = to_email
+
+    text = body
+
+    html = '<html>\n<body>\n'
+
+    for line in body.split('\n'):
+        html += f'<p>{line}</p>\n'
+
+    html += '</body>\n</html>'
+
+    find = html.find('**')
+
+    i = 1
+
+    while find != -1:
+        if i % 2 == 1:
+            html = html[:find]+"<b>"+html[find + len('**'):]
+        else:
+            html = html[:find]+"</b>"+html[find + len('**'):]
+        find = html.find('**', find + len('**') + 1)
+        i += 1
+
+    print(html)
+
+    part1 = MIMEText(text, "plain")
+    part2 = MIMEText(html, "html")
+
+    # Add HTML/plain-text parts to MIMEMultipart message
+    # The email client will try to render the last part first
+    message.attach(part1)
+    message.attach(part2)
+
+    # Create secure connection with server and send email
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+        server.login(from_email, 'password goes here')
+        server.sendmail(
+            from_email, to_email, message.as_string()
+        )
 
 def access_api():
     with open('credentials.yaml', 'r') as file:
@@ -116,13 +157,9 @@ def main():
     credentials = load_credentials('credentials.yaml')
     mail = connect_to_gmail_imap(*credentials)
     get_emails(mail, 'emails.json')
-    body = access_api()
-    send_email(mail, body, 'jonnysj8@gmail.com', 'jonnysj8@gmail.com')
-
-    #file_name = 'result.txt'
-    #f = open(file_name, "x")
-    #f.write(body)
-    #f.close()
+    #body = access_api()
+    with open('result.txt', 'r') as file:
+        send_email(mail, file.read(), 'jonnysj8@gmail.com', 'jonnysj8@gmail.com')
 
 if __name__ == "__main__":
     main()
