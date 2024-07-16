@@ -14,7 +14,7 @@ from time import time
 
 prompt = '''
     Please summarize the key learnings from the top 10 articles across these 5 newsletters. 
-    For each article, provide the author, title, date the article was written, what newsletter the article was from, and a brief summary 
+    For each article, provide the author, title, what newsletter the article was from, and a brief summary 
     of the key learnings. The summary should include context around the issue, the methodology used, 
     and the solution outlined. Additionally, include a link to access the full article. Here are 
     the 5 newsletters:
@@ -43,11 +43,11 @@ def connect_to_gmail_imap(user, password):
         raise
 
 def get_emails(mail, filepath):
-    _, selected_mails = mail.search(None, 'OR (FROM "noreply@medium.com") (FROM "markmallard29@gmail.com")')
+    _, selected_mails = mail.search(None, 'OR (FROM "mark@mathison.ai") (FROM "markmallard29@gmail.com")')
 
     print(len(selected_mails[0].split()))
     for num in selected_mails[0].split()[:3]: # Add index here (e.g., [:10]) to limit the number of emails received
-        _, data = mail.fetch(num , '(RFC822)')
+        _, data = mail.fetch(num, '(RFC822)')
         _, bytes_data = data[0]
 
         #convert the byte data to message
@@ -125,6 +125,7 @@ def send_email(body, from_email, to_email):
 def access_api():
     with open('credentials.yaml', 'r') as file:
         credentials = yaml.safe_load(file)
+        organisation = credentials['organisation']
         api_key = credentials['api_key']
 
     content = ""
@@ -135,7 +136,7 @@ def access_api():
             content = file.read()
     
         client = OpenAI(
-            organization='org-RCHvmqk9Mhdjk5WOht6gFsyu',
+            organization=organisation,
             #project='newsletter_summarizer',
             api_key=api_key
         )
@@ -179,5 +180,5 @@ def main():
 if __name__ == "__main__":
     main()
 
-#TODO:
-#   Extract headers, text and links from the emails
+#TODO: Make more efficient calls to the OpenAI API
+#TODO: Look into webscraping rather than pulling emails from inbox. Create list of websites user gets most of their info from, pull main story on the home page for each website link
