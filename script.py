@@ -1,23 +1,31 @@
 import yaml
 import logging
 import imaplib
-import pandas as pd
 import email
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import smtplib, ssl
-from email.message import Message
-from bs4 import BeautifulSoup
-from itertools import chain
+import os
 from openai import OpenAI
-from time import time
 
-prompt = '''
-    Please summarize the key learnings from the top 10 articles across these 5 newsletters. 
-    For each article, provide the author, title, what newsletter the article was from, and a brief summary 
-    of the key learnings. The summary should include context around the issue, the methodology used, 
-    and the solution outlined. Additionally, include a link to access the full article. Here are 
-    the 5 newsletters:
+prompt1 = '''
+    Please summarize the articles from this newsletter into this format:
+        - Title: [Title of the article]
+        - Author: [Author of the article]
+        - Newsletter: [Name of the newsletter the article was taken from]
+        - Summary: [Summary of the article (more details about the summary below)]
+        - Link: [A link which goes straight to the article's page on the website. This link can usually be found in an <a> tag in the title and should be the same link found in the newsletter]
+    Please ensure the summary is around 500 characters and includes context around the issue, the methodology used, and the solution outlined. Here is the newsletter:
+'''
+
+prompt2 = '''
+    Please summarize the key learnings from the top 10 articles across these newsletters into this format:
+        - **Title:** [Title of the article]
+        - **Author:** [Author of the article]
+        - **Newsletter:** [Name of the newsletter the article was taken from]
+        - **Summary:** [Summary of the article (more details about the summary below)]
+        - **Link:** [A link which goes straight to the article's page on the website. This link can usually be found in an <a> tag in the title and should be the same link found in the newsletter]
+    Please ensure the summary is close to 500 characters and includes context around the issue, the methodology used, and the solution outlined. Here are the articles:
 '''
 
 def load_credentials(filepath):
@@ -42,11 +50,11 @@ def connect_to_gmail_imap(user, password):
         logging.error("Connection failed: {}".format(e))
         raise
 
-def get_emails(mail, filepath):
-    _, selected_mails = mail.search(None, 'OR (FROM "mark@mathison.ai") (FROM "markmallard29@gmail.com")')
+def get_emails(mail):
+    _, selected_mails = mail.search(None, 'UnSeen')
 
     print(len(selected_mails[0].split()))
-    for num in selected_mails[0].split()[:3]: # Add index here (e.g., [:10]) to limit the number of emails received
+    for num in selected_mails[0].split()[:4]: # Add index here (e.g., [:10]) to limit the number of emails received
         _, data = mail.fetch(num, '(RFC822)')
         _, bytes_data = data[0]
 
@@ -127,36 +135,39 @@ def access_api():
         credentials = yaml.safe_load(file)
         organisation = credentials['organisation']
         api_key = credentials['api_key']
+    
+    client = OpenAI(
+        organization=organisation,
+        #project='newsletter_summarizer',
+        api_key=api_key
+    )
 
     content = ""
     body = ''
 
-    for i in ['5', '7']:
-        with open(f'article_{i}.txt', 'r') as file:
-            content = file.read()
-    
-        client = OpenAI(
-            organization=organisation,
-            #project='newsletter_summarizer',
-            api_key=api_key
-        )
+    dir = os.fsencode('/home/jonny/Documents/repos/newsletter_summariser')
+    for file in os.listdir(dir):
+        filename = os.fsdecode(file)
+        if filename.endswith(".txt") and filename.startswith("article"):
 
-        response = client.chat.completions.create(
-            model = "gpt-3.5-turbo",
-            messages = [
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": content}
-            ]
-        )
+            print(filename)
+            with open(filename, 'r') as file:
+                content = file.read()
 
-        body += response.choices[0].message.content
+            response = client.chat.completions.create(
+                model = "gpt-4-turbo",
+                messages = [
+                    {"role": "system", "content": prompt1},
+                    {"role": "user", "content": content}
+                ]
+            )
+
+            body += response.choices[0].message.content
     
     response = client.chat.completions.create(
-        model = "gpt-3.5-turbo",
+        model = "gpt-4-turbo",
         messages = [
-            {"role": "system", "content": '''Summarise these stories into the 5 biggest and most important stories. For each article, 
-             provide the author, title (with the link to the article embedded into this), date the article was written, what newsletter the artcile was from, and a brief summary of the 
-             key learnings. The summary should include context around the issue, the methodology used, and the solution outlined.'''},
+            {"role": "system", "content": prompt2},
             {"role": "user", "content": body}
         ]
     )
@@ -173,7 +184,7 @@ def access_api():
 def main():
     credentials = load_credentials('credentials.yaml')
     mail = connect_to_gmail_imap(*credentials)
-    get_emails(mail, 'emails.json')
+    get_emails(mail)
     body = access_api()
     send_email(body, 'jonnysj8@gmail.com', 'jonny.streatfeild-james@pax2pay.com')
 
