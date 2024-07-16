@@ -14,7 +14,7 @@ from time import time
 
 prompt = '''
     Please summarize the key learnings from the top 10 articles across these 5 newsletters. 
-    For each article, provide the author, title, date the article was written, and a brief summary 
+    For each article, provide the author, title, date the article was written, what newsletter the article was from, and a brief summary 
     of the key learnings. The summary should include context around the issue, the methodology used, 
     and the solution outlined. Additionally, include a link to access the full article. Here are 
     the 5 newsletters:
@@ -66,19 +66,20 @@ def get_emails(mail, filepath):
                 print("Message: \n", decoded_message)
                 print("==========================================\n")
                 file_name = f'article_{int(num)}.txt'
-                #f = open(file_name, "x")
-                #f.write(decoded_message)
-                #f.close()
+                f = open(file_name, "x")
+                f.write(decoded_message)
+                f.close()
                 break
     return
 
-def send_email(mail, body, from_email, to_email):
-    #new_message = Message()
-    #new_message['From'] = from_email
-    #new_message['Subject'] = 'Test subject'
-    #new_message.set_payload(body)
-
-    #mail.append('INBOX', '', imaplib.Time2Internaldate(time()), str(new_message).encode('utf-8'))
+def send_email(body, from_email, to_email):
+    try:
+        with open('credentials.yaml', 'r') as file:
+            credentials = yaml.safe_load(file)
+            password = credentials['password']
+    except Exception as e:
+        logging.error("Failed to load credentials: {}".format(e))
+        raise
 
     message = MIMEMultipart("alternative")
     message["Subject"] = "Your Daily AI News"
@@ -87,17 +88,14 @@ def send_email(mail, body, from_email, to_email):
 
     text = body
 
-    html = '<html>\n<body>\n'
-
+    html = '<html>\n<body>\n<h1 style="text-align: center">Here is your AI news for the day</h1>'
     for line in body.split('\n'):
+        if line[:3] == '###': break
         html += f'<p>{line}</p>\n'
-
     html += '</body>\n</html>'
 
     find = html.find('**')
-
     i = 1
-
     while find != -1:
         if i % 2 == 1:
             html = html[:find]+"<b>"+html[find + len('**'):]
@@ -119,47 +117,64 @@ def send_email(mail, body, from_email, to_email):
     # Create secure connection with server and send email
     context = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-        server.login(from_email, 'password goes here')
+        server.login(from_email, password)
         server.sendmail(
             from_email, to_email, message.as_string()
         )
 
 def access_api():
     with open('credentials.yaml', 'r') as file:
-            credentials = yaml.safe_load(file)
-            api_key = credentials['api_key']
+        credentials = yaml.safe_load(file)
+        api_key = credentials['api_key']
 
     content = ""
+    body = ''
 
-    for i in ['7']:
+    for i in ['5', '7']:
         with open(f'article_{i}.txt', 'r') as file:
-            content += file.read()
+            content = file.read()
     
-    client = OpenAI(
-        organization='org-RCHvmqk9Mhdjk5WOht6gFsyu',
-        #project='newsletter_summarizer',
-        api_key=api_key
-    )
+        client = OpenAI(
+            organization='org-RCHvmqk9Mhdjk5WOht6gFsyu',
+            #project='newsletter_summarizer',
+            api_key=api_key
+        )
 
+        response = client.chat.completions.create(
+            model = "gpt-3.5-turbo",
+            messages = [
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": content}
+            ]
+        )
+
+        body += response.choices[0].message.content
+    
     response = client.chat.completions.create(
         model = "gpt-3.5-turbo",
         messages = [
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": content}
+            {"role": "system", "content": '''Summarise these stories into the 5 biggest and most important stories. For each article, 
+             provide the author, title (with the link to the article embedded into this), date the article was written, what newsletter the artcile was from, and a brief summary of the 
+             key learnings. The summary should include context around the issue, the methodology used, and the solution outlined.'''},
+            {"role": "user", "content": body}
         ]
     )
 
-    body = response.choices[0].message.content
+    result = response.choices[0].message.content
 
-    return body
+    file_name = 'result.txt'
+    f = open(file_name, "x")
+    f.write(result)
+    f.close()
+
+    return result
 
 def main():
     credentials = load_credentials('credentials.yaml')
     mail = connect_to_gmail_imap(*credentials)
     get_emails(mail, 'emails.json')
-    #body = access_api()
-    with open('result.txt', 'r') as file:
-        send_email(mail, file.read(), 'jonnysj8@gmail.com', 'jonnysj8@gmail.com')
+    body = access_api()
+    send_email(body, 'jonnysj8@gmail.com', 'jonny.streatfeild-james@pax2pay.com')
 
 if __name__ == "__main__":
     main()
