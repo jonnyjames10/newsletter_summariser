@@ -9,23 +9,35 @@ import os
 from openai import OpenAI
 
 prompt1 = '''
-    Please summarize the articles from this newsletter into this format:
-        - Title: [Title of the article]
-        - Author: [Author of the article]
-        - Newsletter: [Name of the newsletter the article was taken from]
-        - Summary: [Summary of the article (more details about the summary below)]
-        - Link: [A link which goes straight to the article's page on the website. This link can usually be found in an <a> tag in the title and should be the same link found in the newsletter]
-    Please ensure the summary is around 500 characters and includes context around the issue, the methodology used, and the solution outlined. Here is the newsletter:
+    You are a creating a newsletter of the the top AI news stories. Summarise the stories from this newsletter. The goal is to engage the reader into clicking a link to take the user to the article. Summarise 
+    the stories into this format:
+    - **Title:** [Title of the article]
+    - **Author:** [Author of the article]
+    - **Newsletter:** [Name of the newsletter the article was taken from]
+    - **Summary:** [Summary of the article (more details about the summary below)]
+    - **Link:** [A link which goes straight to the article's page on the website]
+    Please ensure the summary is close to 500 characters and includes context around the issue, the methodology used, and the solution outlined. Also, don't include any feedback and just the articles. Here are the articles:
 '''
 
 prompt2 = '''
-    Please summarize the key learnings from the top 10 articles across these newsletters into this format:
+    Please summarize the key learnings from the top 5 articles across these newsletters into this format:
         - **Title:** [Title of the article]
         - **Author:** [Author of the article]
         - **Newsletter:** [Name of the newsletter the article was taken from]
         - **Summary:** [Summary of the article (more details about the summary below)]
-        - **Link:** [A link which goes straight to the article's page on the website. This link can usually be found in an <a> tag in the title and should be the same link found in the newsletter]
-    Please ensure the summary is close to 500 characters and includes context around the issue, the methodology used, and the solution outlined. Here are the articles:
+        - **Link:** [A link which goes straight to the article's page on the website]
+    Please ensure the summary is close to 500 characters and includes context around the issue, the methodology used, and the solution outlined. Also, don't include any feedback and just the articles. Here are the articles:
+'''
+
+new_prompt = '''
+    You are a creating a newsletter of the 5 most important stories from newsletters. Go through the articles from each newsletter, and out of these summarise the top 5 of them. The goal is to engage the reader into
+    clicking a link to take the user to the article. Summarise the article into this format:
+    - **Title:** [Title of the article]
+    - **Author:** [Author of the article]
+    - **Newsletter:** [Name of the newsletter the article was taken from]
+    - **Summary:** [Summary of the article (more details about the summary below)]
+    - **Link:** [A link which goes straight to the article's page on the website]
+    Please ensure the summary is close to 500 characters and includes context around the issue, the methodology used, and the solution outlined. Also, don't include any feedback and just the articles. Here are the articles:
 '''
 
 def load_credentials(filepath):
