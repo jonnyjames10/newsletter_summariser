@@ -179,7 +179,7 @@ def access_api():
     response = client.chat.completions.create(
         model = "gpt-4-turbo",
         messages = [
-            {"role": "system", "content": prompt2},
+            {"role": "system", "content": new_prompt},
             {"role": "user", "content": body}
         ]
     )
